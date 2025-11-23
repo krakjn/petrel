@@ -30,7 +30,7 @@ clean:
 # Format all C++ source files with clang-format
 fmt:
     #!/bin/bash
-    find src include examples -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) -exec clang-format -i {} \;
+    find include examples -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) -exec clang-format -i {} \;
 
 # Run publisher and subscriber in Docker (convenience command)
 run:
@@ -66,9 +66,9 @@ test-idl: test
 # Internal recipe: generate types inside container
 _gen-types-internal:
     #!/bin/bash
-    echo "Generating type support from HelloWorld.idl..."
+    echo "Generating type support from examples/HelloWorld.idl..."
     mkdir -p gen
-    fastddsgen -replace -d gen HelloWorld.idl
+    cd examples && fastddsgen -replace -d ../gen HelloWorld.idl && cd ..
     echo "Type support generated successfully in gen/!"
     echo "Files created:"
     echo "  - gen/HelloWorld.hpp"

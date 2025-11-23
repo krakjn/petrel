@@ -14,15 +14,12 @@ find_path(FASTDDS_INCLUDE_DIR fastdds/dds/domain/DomainParticipantFactory.hpp PA
 # Include directories
 include_directories(include)
 include_directories(${FASTDDS_INCLUDE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gen)
 
-add_library(petrel STATIC src/client.cpp)
-target_link_libraries(petrel 
-    ${FASTDDS_LIB}
-    ${FASTCDR_LIB}
-)
-
-# Set include directories for library
-target_include_directories(petrel PUBLIC
+# Petrel is now header-only, no library to build
+# Just set up an interface library for installation
+add_library(petrel INTERFACE)
+target_include_directories(petrel INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
@@ -33,10 +30,10 @@ set(HELLOWORLD_SOURCES
     gen/HelloWorldTypeObjectSupport.cxx
 )
 
-# Simple IDL-based publisher and subscriber
+# IDL-based publisher and subscriber examples
 add_executable(publisher examples/publisher.cpp ${HELLOWORLD_SOURCES})
 target_include_directories(publisher PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/gen
 )
 target_link_libraries(publisher
@@ -46,7 +43,7 @@ target_link_libraries(publisher
 
 add_executable(subscriber examples/subscriber.cpp ${HELLOWORLD_SOURCES})
 target_include_directories(subscriber PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/gen
 )
 target_link_libraries(subscriber
