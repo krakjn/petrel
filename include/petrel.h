@@ -1,16 +1,15 @@
 #ifndef PETREL_HPP
 #define PETREL_HPP
 
-#include <string>
-#include <vector>
 #include <functional>
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace petrel {
 
-class Publisher
-{
-public:
+class Publisher {
+  public:
     Publisher();
     ~Publisher();
 
@@ -18,32 +17,32 @@ public:
     bool init();
 
     // Publish a message to a topic (auto-prefixed with petrel/)
-    bool publish(const std::string& topic, const std::vector<uint8_t>& data);
+    bool publish(const std::string &topic, const std::vector<uint8_t> &data);
 
     // Cleanup/teardown
     void stop();
 
-private:
+  private:
     class Impl;
     std::unique_ptr<Impl> pimpl_;
 };
 
-class Subscriber
-{
-public:
+class Subscriber {
+  public:
     Subscriber();
     ~Subscriber();
 
     // Initialize the subscriber with a callback
-    bool init(std::function<void(const std::string& topic, const std::vector<uint8_t>& data)> callback);
+    bool
+    init(std::function<void(const std::string &topic, const std::vector<uint8_t> &data)> callback);
 
     // Subscribe to a topic (auto-prefixed with petrel/)
-    bool subscribe(const std::string& topic);
+    bool subscribe(const std::string &topic);
 
     // Cleanup/teardown
     void stop();
 
-private:
+  private:
     class Impl;
     std::unique_ptr<Impl> pimpl_;
 };

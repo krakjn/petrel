@@ -27,6 +27,11 @@ sh:
 clean:
     rm -rf build
 
+# Format all C++ source files with clang-format
+fmt:
+    #!/bin/bash
+    find src include examples -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) -exec clang-format -i {} \;
+
 # Run publisher and subscriber in Docker (convenience command)
 run:
     #!/bin/bash
