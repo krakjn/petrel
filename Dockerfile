@@ -1,62 +1,58 @@
 FROM ubuntu:22.04
 
-# Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Install build tools and Fast-DDS dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
-    git \
-    wget \
     curl \
+    default-jre \
+    git \
     libasio-dev \
-    libtinyxml2-dev \
-    libssl-dev \
-    libp11-kit-dev \
     libengine-pkcs11-openssl \
+    libp11-kit-dev \
+    libssl-dev \
+    libtinyxml2-dev \
     libxml2-dev \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 
-# Install FastCDR (dependency of Fast-DDS) from source
-WORKDIR /tmp
-RUN git clone https://github.com/eProsima/Fast-CDR.git && \
-    cd Fast-CDR && \
-    mkdir build && cd build && \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/usr && \
-    cmake --build . --target install && \
-    cd / && rm -rf /tmp/Fast-CDR
+# Install FastCDR (dependency of Fast-DDS)
+RUN <<EOF
+git clone -b v2.3.4 https://github.com/eProsima/Fast-CDR.git cdr
+cmake -S cdr -B cdr/build -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build cdr/build --target install
+rm -rf cdr
+EOF
 
-# Install foonathan_memory (dependency of Fast-DDS) from source
-WORKDIR /tmp
-RUN git clone https://github.com/foonathan/memory.git foonathan_memory && \
-    cd foonathan_memory && \
-    mkdir build && cd build && \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DFOONATHAN_MEMORY_BUILD_EXAMPLES=OFF -DFOONATHAN_MEMORY_BUILD_TESTS=OFF && \
-    cmake --build . --target install && \
-    cd / && rm -rf /tmp/foonathan_memory
+# Install foonathan_memory (dependency of Fast-DDS)
+RUN <<EOF
+git clone -b v0.7-4 https://github.com/foonathan/memory.git foonathan
+cmake -S foonathan -B foonathan/build -DCMAKE_INSTALL_PREFIX=/usr -DFOONATHAN_MEMORY_BUILD_EXAMPLES=OFF -DFOONATHAN_MEMORY_BUILD_TESTS=OFF
+cmake --build foonathan/build --target install
+rm -rf foonathan
+EOF
 
-# Install Fast-DDS from source
-WORKDIR /tmp
-RUN git clone --recursive https://github.com/eProsima/Fast-DDS.git && \
-    cd Fast-DDS && \
-    mkdir build && cd build && \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/usr && \
-    cmake --build . --target install && \
-    cd / && rm -rf /tmp/Fast-DDS
+# Install Fast-DDS, need to build as eprosima doesn't ship prebuilt packages
+RUN <<EOF
+git clone -b v3.4.1 --recursive https://github.com/eProsima/Fast-DDS.git dds
+cmake -S dds -B dds/build -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build dds/build --target install
+rm -rf dds
+EOF
 
 # Install Fast-DDS-Gen (IDL code generator)
-RUN apt-get update && apt-get install -y default-jre && rm -rf /var/lib/apt/lists/*
-WORKDIR /tmp
-RUN git clone --recursive https://github.com/eProsima/Fast-DDS-Gen.git && \
-    cd Fast-DDS-Gen && \
-    ./gradlew assemble && \
-    mkdir -p /usr/local/share/fastddsgen && \
-    cp -r share/fastddsgen/* /usr/local/share/fastddsgen/ && \
-    cp scripts/fastddsgen /usr/local/bin/ && \
-    chmod +x /usr/local/bin/fastddsgen && \
-    cd / && rm -rf /tmp/Fast-DDS-Gen
+RUN <<EOF
+git clone -b v4.2.0 --recursive https://github.com/eProsima/Fast-DDS-Gen.git fastddsgen
+cd fastddsgen
+./gradlew assemble
+mkdir -p /usr/local/share/fastddsgen
+cp -r share/fastddsgen/* /usr/local/share/fastddsgen/
+cp scripts/fastddsgen /usr/local/bin/
+chmod +x /usr/local/bin/fastddsgen
+cd ..
+rm -rf fastddsgen
+EOF
 
 # Install just command runner
 RUN curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin

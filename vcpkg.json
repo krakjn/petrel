@@ -1,0 +1,16 @@
+{
+  "name": "petrel",
+  "version": "0.1.0",
+  "dependencies": [
+    {
+      "name": "fastcdr",
+      "version>=": "2.3.4"
+    },
+    {
+      "name": "fastdds",
+      "version>=": "3.4.1"
+    }
+  ],
+  "builtin-baseline": "master"
+}
+

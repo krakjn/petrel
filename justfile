@@ -1,80 +1,49 @@
-# Build the project locally
-build:
-    cmake -B build -S . && cmake --build build
+IMAGE := "ghcr.io/krakjn/petrel:0.1.0"
 
-# Build the project using Docker
-docker-build:
-    #!/bin/bash
-    docker run --rm \
-        -v "{{justfile_directory()}}:$(pwd)" \
-        -w $(pwd) \
-        petrel-builder just _build-internal
-
-# Build Docker image with Fast-DDS and just
-img:
-    #!/bin/bash
-    docker build -t petrel-builder -f Dockerfile .
-
-# Open a shell in the Docker container
-sh:
+_docker_run CMD:
     #!/bin/bash
     docker run --rm -it \
         -v "{{justfile_directory()}}:$(pwd)" \
         -w $(pwd) \
-        petrel-builder bash
+        {{IMAGE}} {{CMD}}
+
+# Build the project in the Docker container
+build: (_docker_run 'just _cmake')
+
+# Build Docker image with Fast-DDS and just
+img:
+    @docker build -t {{IMAGE}} -< Dockerfile
+
+# Open a shell in the Docker container
+sh: (_docker_run 'bash')
 
 # Clean build artifacts
 clean:
-    rm -rf build
+    rm -rf build gen
 
 # Format all C++ source files with clang-format
 fmt:
     #!/bin/bash
     find include examples -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) -exec clang-format -i {} \;
 
-# Run publisher and subscriber in Docker (convenience command)
-run:
-    #!/bin/bash
-    docker run --rm \
-        -v "{{justfile_directory()}}:$(pwd)" \
-        -w $(pwd) \
-        petrel-builder bash -c './build/subscriber & sleep 2 && ./build/publisher; wait'
-
 # Test - run IDL publisher and subscriber
-test:
-    #!/bin/bash
-    docker run --rm \
-        -v "{{justfile_directory()}}:$(pwd)" \
-        -w $(pwd) \
-        petrel-builder just _test-idl-internal
+test: (_docker_run 'just _test-idl-internal')
+
+# Build packages (DEB and TGZ)
+package: (_docker_run 'just _package-internal')
 
 # Internal recipe: build inside container
-_build-internal:
-    cmake -B build -S . && cmake --build build
-
-# Generate type support code from IDL files
-gen-types:
+_cmake: _gen-types
     #!/bin/bash
-    docker run --rm \
-        -v "{{justfile_directory()}}:$(pwd)" \
-        -w $(pwd) \
-        petrel-builder just _gen-types-internal
+    cmake -B build -S .
+    cmake --build build
 
-# Test IDL-based publisher/subscriber (alias for test)
-test-idl: test
 
 # Internal recipe: generate types inside container
-_gen-types-internal:
+_gen-types:
     #!/bin/bash
-    echo "Generating type support from examples/HelloWorld.idl..."
     mkdir -p gen
-    cd examples && fastddsgen -replace -d ../gen HelloWorld.idl && cd ..
-    echo "Type support generated successfully in gen/!"
-    echo "Files created:"
-    echo "  - gen/HelloWorld.hpp"
-    echo "  - gen/HelloWorldCdrAux.hpp/ipp"
-    echo "  - gen/HelloWorldPubSubTypes.cxx/hpp"
-    echo "  - gen/HelloWorldTypeObjectSupport.cxx/hpp"
+    fastddsgen -replace -d gen/ -flat-output-dir examples/HelloWorld.idl
 
 # Internal recipe: test IDL inside container
 _test-idl-internal:
@@ -86,4 +55,16 @@ _test-idl-internal:
     echo ''
     echo '=== MESSAGES RECEIVED ==='
     cat /tmp/subscriber.log
+
+# Internal recipe: build packages inside container
+_package-internal: _cmake
+    #!/bin/bash
+    cd build
+    echo "Creating DEB package..."
+    cpack -G DEB
+    echo "Creating TGZ package..."
+    cpack -G TGZ
+    echo ""
+    echo "Packages created:"
+    ls -lh *.deb *.tar.gz 2>/dev/null || echo "No packages found"
 
