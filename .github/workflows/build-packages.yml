@@ -19,6 +19,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     container:
       image: ghcr.io/krakjn/petrel:0.1.0
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       matrix:
         include:
