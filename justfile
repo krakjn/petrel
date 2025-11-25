@@ -29,9 +29,6 @@ fmt:
 # Test - run IDL publisher and subscriber
 test: (_docker_run 'just _test-idl-internal')
 
-# Build packages (DEB and TGZ)
-package: (_docker_run 'just _pkg')
-
 # Internal recipe: build inside container
 _cmake: _gen-types
     #!/bin/bash
@@ -57,7 +54,7 @@ _test-idl-internal:
     cat /tmp/subscriber.log
 
 # Internal recipe: build packages inside container
-_pkg:
+package: _gen-types
     #!/bin/bash
     cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr
     cmake --build build
