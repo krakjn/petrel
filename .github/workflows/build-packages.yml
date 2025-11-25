@@ -36,16 +36,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Build Petrel
-        run: |
-          cmake -B build -DCMAKE_INSTALL_PREFIX=/usr
-          cmake --build build
-      
       - name: Create Packages
         run: |
-          cd build
-          cpack -G DEB
-          cpack -G TGZ
+          just _pkg
       
       - name: Upload DEB Package
         uses: actions/upload-artifact@v4

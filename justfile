@@ -30,7 +30,7 @@ fmt:
 test: (_docker_run 'just _test-idl-internal')
 
 # Build packages (DEB and TGZ)
-package: (_docker_run 'just _package-internal')
+package: (_docker_run 'just _pkg')
 
 # Internal recipe: build inside container
 _cmake: _gen-types
@@ -57,14 +57,13 @@ _test-idl-internal:
     cat /tmp/subscriber.log
 
 # Internal recipe: build packages inside container
-_package-internal: _cmake
+_pkg:
     #!/bin/bash
+    cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr
+    cmake --build build
     cd build
     echo "Creating DEB package..."
     cpack -G DEB
     echo "Creating TGZ package..."
     cpack -G TGZ
-    echo ""
-    echo "Packages created:"
-    ls -lh *.deb *.tar.gz 2>/dev/null || echo "No packages found"
 
