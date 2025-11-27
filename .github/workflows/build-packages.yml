@@ -129,7 +129,9 @@ jobs:
       
       - name: Build Petrel
         run: |
-          cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local
+          mkdir -p gen
+          fastddsgen -replace -d gen/ -flat-output-dir examples/HelloWorld.idl
+          cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr/local
           cmake --build build
       
       - name: Create Package
