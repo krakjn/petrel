@@ -145,75 +145,97 @@ jobs:
           name: petrel-darwin-${{ matrix.arch }}-tar
           path: build/*.tar.gz
 
-  # build-windows:
-  #   name: Build Windows ${{ matrix.arch }}
-  #   runs-on: ${{ matrix.runner }}
-  #   strategy:
-  #     matrix:
-  #       include:
-  #         - arch: x86_64
-  #           runner: windows-latest
-  #           cmake_arch: x64
-  #           vcpkg_triplet: x64-windows
-  #         - arch: arm64
-  #           runner: windows-11-arm
-  #           cmake_arch: ARM64
-  #           vcpkg_triplet: arm64-windows
-  #
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Setup vcpkg
-  #       uses: lukka/run-vcpkg@v11
-  #
-  #     - name: Setup vcpkg Binary Cache
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: |
-  #           ${{ github.workspace }}/vcpkg_installed
-  #           ${{ github.workspace }}/build/vcpkg_installed
-  #         key: vcpkg-${{ matrix.vcpkg_triplet }}-${{ hashFiles('vcpkg.json') }}
-  #         restore-keys: |
-  #           vcpkg-${{ matrix.vcpkg_triplet }}-
-  #
-  #     - name: Install Fast-DDS via vcpkg
-  #       shell: pwsh
-  #       run: |
-  #         vcpkg install --triplet=${{ matrix.vcpkg_triplet }}
-  #
-  #     - name: Download fastddsgen
-  #       shell: pwsh
-  #       run: |
-  #         Invoke-WebRequest -Uri "https://github.com/eProsima/Fast-DDS-Gen/releases/download/v4.2.0/fastddsgen-v4.2.0.zip" -OutFile "fastddsgen.zip"
-  #         Expand-Archive -Path "fastddsgen.zip" -DestinationPath "fastddsgen"
-  #         New-Item -ItemType Directory -Force -Path "C:\Program Files\petrel\share\fastddsgen"
-  #         Copy-Item -Recurse "fastddsgen\*" "C:\Program Files\petrel\share\fastddsgen\"
-  #
-  #     - name: Build Petrel
-  #       shell: pwsh
-  #       run: |
-  #         cmake -B build -A ${{ matrix.cmake_arch }} `
-  #           -DCMAKE_TOOLCHAIN_FILE="${env:VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" `
-  #           -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
-  #           -DCMAKE_INSTALL_PREFIX="C:\Program Files\petrel"
-  #         cmake --build build --config Release
-  #
-  #     - name: Create Package
-  #       shell: pwsh
-  #       run: |
-  #         cd build
-  #         cpack -G ZIP -C Release
-  #
-  #     - name: Upload Package
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: petrel-windows-${{ matrix.arch }}-zip
-  #         path: build/*.zip
+  build-windows:
+    name: Build Windows ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: windows-latest
+            cmake_arch: x64
+          - arch: arm64
+            runner: windows-11-arm
+            cmake_arch: ARM64
+  
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Install System Dependencies
+        run: |
+          choco install -y cmake git wget
+      
+      - name: Cache Fast-DDS
+        id: cache-fastdds
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files (x86)\fastdds
+          key: windows-${{ matrix.arch }}-fastdds-v2.3.4-v3.4.1-v0.7-4
+      
+      - name: Build Fast-DDS
+        if: steps.cache-fastdds.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          # Build Fast-CDR v2.3.4
+          git clone -b v2.3.4 https://github.com/eProsima/Fast-CDR.git
+          cmake -S Fast-CDR -B Fast-CDR/build -A ${{ matrix.cmake_arch }} -DCMAKE_INSTALL_PREFIX="C:\Program Files (x86)\fastdds"
+          cmake --build Fast-CDR/build --config Release --target install
+          Remove-Item -Recurse -Force Fast-CDR
+          
+          # Build foonathan_memory v0.7-4
+          git clone -b v0.7-4 https://github.com/foonathan/memory.git foonathan_memory
+          cmake -S foonathan_memory -B foonathan_memory/build -A ${{ matrix.cmake_arch }} -DCMAKE_INSTALL_PREFIX="C:\Program Files (x86)\fastdds" -DFOONATHAN_MEMORY_BUILD_EXAMPLES=OFF -DFOONATHAN_MEMORY_BUILD_TESTS=OFF
+          cmake --build foonathan_memory/build --config Release --target install
+          Remove-Item -Recurse -Force foonathan_memory
+          
+          # Build Fast-DDS v3.4.1
+          git clone -b v3.4.1 --recursive https://github.com/eProsima/Fast-DDS.git
+          cmake -S Fast-DDS -B Fast-DDS/build -A ${{ matrix.cmake_arch }} -DCMAKE_INSTALL_PREFIX="C:\Program Files (x86)\fastdds" -DCMAKE_PREFIX_PATH="C:\Program Files (x86)\fastdds"
+          cmake --build Fast-DDS/build --config Release --target install
+          Remove-Item -Recurse -Force Fast-DDS
+      
+      - name: Build fastddsgen
+        shell: pwsh
+        run: |
+          git clone -b v4.2.0 --recursive https://github.com/eProsima/Fast-DDS-Gen.git fastddsgen
+          cd fastddsgen
+          .\gradlew.bat assemble
+          New-Item -ItemType Directory -Force -Path "C:\Program Files (x86)\fastdds\share\fastddsgen"
+          Copy-Item -Recurse share\fastddsgen\* "C:\Program Files (x86)\fastdds\share\fastddsgen\"
+          Copy-Item scripts\fastddsgen.bat "C:\Program Files (x86)\fastdds\bin\"
+          cd ..
+          Remove-Item -Recurse -Force fastddsgen
+      
+      - name: Build Petrel
+        shell: pwsh
+        run: |
+          $env:CMAKE_PREFIX_PATH = "C:\Program Files (x86)\fastdds"
+          $env:PATH = "C:\Program Files (x86)\fastdds\bin;$env:PATH"
+          cmake -B build -A ${{ matrix.cmake_arch }} -DCMAKE_INSTALL_PREFIX="C:\Program Files\petrel" -DCMAKE_PREFIX_PATH="C:\Program Files (x86)\fastdds"
+          cmake --build build --config Release
+      
+      - name: Create Package
+        shell: pwsh
+        run: |
+          cd build
+          cpack -G ZIP -C Release
+      
+      - name: Upload Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: petrel-windows-${{ matrix.arch }}-zip
+          path: build/*.zip
 
   release:
     name: Create Release
-    needs: [build-linux]
+    needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     
