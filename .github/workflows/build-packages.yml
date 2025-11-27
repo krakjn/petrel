@@ -69,8 +69,14 @@ jobs:
       
       - name: Install System Dependencies
         run: |
-          brew install cmake git wget
-      
+          brew install \
+            cmake \
+            asio \
+            openjdk \
+            openssl@3 \
+            p11-kit \
+            tinyxml2 \
+            wget
       - name: Cache Fast-DDS
         id: cache-fastdds
         uses: actions/cache@v4
