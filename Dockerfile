@@ -46,8 +46,7 @@ RUN <<EOF
 git clone -b v4.2.0 --recursive https://github.com/eProsima/Fast-DDS-Gen.git fastddsgen
 cd fastddsgen
 ./gradlew assemble
-mkdir -p /usr/local/share/fastddsgen
-cp -r share/fastddsgen/* /usr/local/share/fastddsgen/
+cp -r share/fastddsgen /usr/local/share/
 cp scripts/fastddsgen /usr/local/bin/
 chmod +x /usr/local/bin/fastddsgen
 cd ..
@@ -57,5 +56,5 @@ EOF
 # Install just command runner
 RUN curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 
-WORKDIR /workspace
+CMD ["/bin/bash"]
 

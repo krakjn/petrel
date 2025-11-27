@@ -1,21 +1,33 @@
 IMAGE := "ghcr.io/krakjn/petrel:0.1.0"
+export ARCH := if `uname -m` == "x86_64" { "amd64" } else { "arm64" }
 
-_docker_run CMD:
-    #!/bin/bash
+_docker_run ARCH CMD="bash":
     docker run --rm -it \
+        --platform linux/{{ARCH}} \
         -v "{{justfile_directory()}}:$(pwd)" \
         -w $(pwd) \
         {{IMAGE}} {{CMD}}
 
 # Build the project in the Docker container
-build: (_docker_run 'just _cmake')
+build ARCH: (_docker_run ARCH 'just _cmake')
+
+img-load ARCH=ARCH:
+    @docker buildx build \
+    --platform linux/{{ARCH}} \
+    -t {{IMAGE}} \
+    --load \
+    -< Dockerfile
 
 # Build Docker image with Fast-DDS and just
-img:
-    @docker build -t {{IMAGE}} -< Dockerfile
+img-push:
+    @docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    -t {{IMAGE}} \
+    --push \
+    -< Dockerfile
 
 # Open a shell in the Docker container
-sh: (_docker_run 'bash')
+sh: (_docker_run ARCH 'bash')
 
 # Clean build artifacts
 clean:
