@@ -164,7 +164,7 @@ jobs:
       
       - name: Install System Dependencies
         run: |
-          choco install -y cmake git wget openjdk11
+          choco install --no-progress -y git wget openjdk11
       
       - name: Cache Fast-DDS
         id: cache-fastdds
