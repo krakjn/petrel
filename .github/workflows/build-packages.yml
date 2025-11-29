@@ -14,221 +14,283 @@ permissions:
   packages: write
 
 jobs:
-  build-linux:
-    name: Build Linux ${{ matrix.arch }}
-    runs-on: ${{ matrix.runner }}
-    container:
-      image: ghcr.io/krakjn/petrel:0.1.0
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    strategy:
-      matrix:
-        include:
-          - arch: x86_64
-            runner: ubuntu-22.04
-            deb_arch: amd64
-          - arch: aarch64
-            runner: ubuntu-22.04-arm
-            deb_arch: arm64
+  # build-linux:
+  #   name: Build Linux ${{ matrix.arch }}
+  #   runs-on: ${{ matrix.runner }}
+  #   container:
+  #     image: ghcr.io/krakjn/petrel:0.1.0
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.GITHUB_TOKEN }}
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - arch: x86_64
+  #           runner: ubuntu-22.04
+  #           deb_arch: amd64
+  #         - arch: aarch64
+  #           runner: ubuntu-22.04-arm
+  #           deb_arch: arm64
     
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
       
-      - name: Create Packages
-        run: |
-          just package
+  #     - name: Create Packages
+  #       run: |
+  #         just package
       
-      - name: Upload DEB Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: petrel-linux-${{ matrix.deb_arch }}-deb
-          path: build/*.deb
+  #     - name: Upload DEB Package
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: petrel-linux-${{ matrix.deb_arch }}-deb
+  #         path: build/*.deb
       
-      - name: Upload TGZ Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: petrel-linux-${{ matrix.arch }}-tar
-          path: build/*.tar.gz
+  #     - name: Upload TGZ Package
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: petrel-linux-${{ matrix.arch }}-tar
+  #         path: build/*.tar.gz
 
-  build-macos:
-    name: Build macOS ${{ matrix.arch }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - arch: x86_64
-            runner: macos-15-intel
-          - arch: arm64
-            runner: macos-latest
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Install System Dependencies
-        run: brew install asio tinyxml2
-      
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Cache Fast-DDS
-        id: cache-fastdds
-        uses: actions/cache@v4
-        with:
-          path: /usr/local
-          key: macos-${{ matrix.arch }}-fastdds-v2.3.4-v3.4.1-v0.7-4
-      
-      - name: Build Fast-DDS
-        if: steps.cache-fastdds.outputs.cache-hit != 'true'
-        run: |
-          # Build Fast-CDR v2.3.4
-          git clone -b v2.3.4 https://github.com/eProsima/Fast-CDR.git
-          cd Fast-CDR
-          mkdir build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
-          make -j$(sysctl -n hw.ncpu)
-          sudo make install
-          cd ../..
-          rm -rf Fast-CDR
-          
-          # Build foonathan_memory v0.7-4
-          git clone -b v0.7-4 https://github.com/foonathan/memory.git foonathan_memory
-          cd foonathan_memory
-          mkdir build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DFOONATHAN_MEMORY_BUILD_EXAMPLES=OFF -DFOONATHAN_MEMORY_BUILD_TESTS=OFF
-          make -j$(sysctl -n hw.ncpu)
-          sudo make install
-          cd ../..
-          rm -rf foonathan_memory
-          
-          # Build Fast-DDS v3.4.1
-          git clone -b v3.4.1 --recursive https://github.com/eProsima/Fast-DDS.git
-          cd Fast-DDS
-          mkdir build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
-          make -j$(sysctl -n hw.ncpu)
-          sudo make install
-          cd ../..
-          rm -rf Fast-DDS
-      
-      - name: Download fastddsgen
-        run: |
-          git clone -b v4.2.0 --recursive https://github.com/eProsima/Fast-DDS-Gen.git fastddsgen
-          cd fastddsgen
-          ./gradlew assemble
-          cp -r share/fastddsgen /usr/local/share/
-          cp scripts/fastddsgen /usr/local/bin/
-          chmod +x /usr/local/bin/fastddsgen
-          cd ..
-          rm -rf fastddsgen
-      
-      - name: Build Petrel
-        run: |
-          mkdir -p gen
-          fastddsgen -replace -d gen/ -flat-output-dir examples/HelloWorld.idl
-          cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr/local
-          cmake --build build
-      
-      - name: Create Package
-        run: |
-          cd build
-          cpack -G TGZ
-      
-      - name: Upload Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: petrel-darwin-${{ matrix.arch }}-tar
-          path: build/*.tar.gz
-
-  # build-windows:
-  #   name: Build Windows ${{ matrix.arch }}
+  # build-macos:
+  #   name: Build macOS ${{ matrix.arch }}
   #   runs-on: ${{ matrix.runner }}
   #   strategy:
   #     matrix:
   #       include:
   #         - arch: x86_64
-  #           runner: windows-latest
-  #           cmake_arch: x64
-  #           vcpkg_triplet: x64-windows
+  #           runner: macos-15-intel
   #         - arch: arm64
-  #           runner: windows-11-arm
-  #           cmake_arch: ARM64
-  #           vcpkg_triplet: arm64-windows
-  #
+  #           runner: macos-latest
+    
   #   steps:
   #     - name: Checkout
   #       uses: actions/checkout@v4
-  #
-  #     - name: Setup vcpkg
-  #       uses: lukka/run-vcpkg@v11
-  #
-  #     - name: Setup vcpkg Binary Cache
+      
+  #     - name: Install System Dependencies
+  #       run: brew install asio tinyxml2
+      
+  #     - name: Setup Java 11
+  #       uses: actions/setup-java@v4
+  #       with:
+  #         distribution: 'temurin'
+  #         java-version: '11'
+
+  #     - name: Cache Fast-DDS
+  #       id: cache-fastdds
   #       uses: actions/cache@v4
   #       with:
-  #         path: |
-  #           ${{ github.workspace }}/vcpkg_installed
-  #           ${{ github.workspace }}/build/vcpkg_installed
-  #         key: vcpkg-${{ matrix.vcpkg_triplet }}-${{ hashFiles('vcpkg.json') }}
-  #         restore-keys: |
-  #           vcpkg-${{ matrix.vcpkg_triplet }}-
-  #
-  #     - name: Install Fast-DDS via vcpkg
-  #       shell: pwsh
+  #         path: /usr/local
+  #         key: macos-${{ matrix.arch }}-fastdds-v2.3.4-v3.4.1-v0.7-4
+      
+  #     - name: Build Fast-DDS
+  #       if: steps.cache-fastdds.outputs.cache-hit != 'true'
   #       run: |
-  #         vcpkg install --triplet=${{ matrix.vcpkg_triplet }}
-  #
+  #         # Build Fast-CDR v2.3.4
+  #         git clone -b v2.3.4 https://github.com/eProsima/Fast-CDR.git
+  #         cd Fast-CDR
+  #         mkdir build && cd build
+  #         cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+  #         make -j$(sysctl -n hw.ncpu)
+  #         sudo make install
+  #         cd ../..
+  #         rm -rf Fast-CDR
+          
+  #         # Build foonathan_memory v0.7-4
+  #         git clone -b v0.7-4 https://github.com/foonathan/memory.git foonathan_memory
+  #         cd foonathan_memory
+  #         mkdir build && cd build
+  #         cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DFOONATHAN_MEMORY_BUILD_EXAMPLES=OFF -DFOONATHAN_MEMORY_BUILD_TESTS=OFF
+  #         make -j$(sysctl -n hw.ncpu)
+  #         sudo make install
+  #         cd ../..
+  #         rm -rf foonathan_memory
+          
+  #         # Build Fast-DDS v3.4.1
+  #         git clone -b v3.4.1 --recursive https://github.com/eProsima/Fast-DDS.git
+  #         cd Fast-DDS
+  #         mkdir build && cd build
+  #         cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+  #         make -j$(sysctl -n hw.ncpu)
+  #         sudo make install
+  #         cd ../..
+  #         rm -rf Fast-DDS
+      
   #     - name: Download fastddsgen
-  #       shell: pwsh
   #       run: |
-  #         Invoke-WebRequest -Uri "https://github.com/eProsima/Fast-DDS-Gen/releases/download/v4.2.0/fastddsgen-v4.2.0.zip" -OutFile "fastddsgen.zip"
-  #         Expand-Archive -Path "fastddsgen.zip" -DestinationPath "fastddsgen"
-  #         New-Item -ItemType Directory -Force -Path "C:\Program Files\petrel\share\fastddsgen"
-  #         Copy-Item -Recurse "fastddsgen\*" "C:\Program Files\petrel\share\fastddsgen\"
-  #
+  #         git clone -b v4.2.0 --recursive https://github.com/eProsima/Fast-DDS-Gen.git fastddsgen
+  #         cd fastddsgen
+  #         ./gradlew assemble
+  #         cp -r share/fastddsgen /usr/local/share/
+  #         cp scripts/fastddsgen /usr/local/bin/
+  #         chmod +x /usr/local/bin/fastddsgen
+  #         cd ..
+  #         rm -rf fastddsgen
+      
   #     - name: Build Petrel
-  #       shell: pwsh
   #       run: |
-  #         cmake -B build -A ${{ matrix.cmake_arch }} `
-  #           -DCMAKE_TOOLCHAIN_FILE="${env:VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" `
-  #           -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
-  #           -DCMAKE_INSTALL_PREFIX="C:\Program Files\petrel"
-  #         cmake --build build --config Release
-  #
+  #         mkdir -p gen
+  #         fastddsgen -replace -d gen/ -flat-output-dir examples/HelloWorld.idl
+  #         cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr/local
+  #         cmake --build build
+      
   #     - name: Create Package
-  #       shell: pwsh
   #       run: |
   #         cd build
-  #         cpack -G ZIP -C Release
-  #
+  #         cpack -G TGZ
+      
   #     - name: Upload Package
   #       uses: actions/upload-artifact@v4
   #       with:
-  #         name: petrel-windows-${{ matrix.arch }}-zip
-  #         path: build/*.zip
+  #         name: petrel-darwin-${{ matrix.arch }}-tar
+  #         path: build/*.tar.gz
 
-  release:
-    name: Create Release
-    needs: [build-linux]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    
+  build-windows:
+    name: Build Windows ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: windows-latest
+            vcpkg_triplet: x64-windows
+          - arch: arm64
+            runner: windows-11-arm
+            vcpkg_triplet: arm64-windows
+  
     steps:
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
+      - name: Checkout
+        uses: actions/checkout@v4
       
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Install System Dependencies
+        run: choco install --no-progress -y openjdk11
+      
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
         with:
-          files: artifacts/**/*
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          vcpkgGitCommitId: '7ba0ba7334c3346e7eee1e049ba85da193a8d821'
+      
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg_installed
+            ${{ env.VCPKG_ROOT }}/installed
+          key: vcpkg-${{ matrix.vcpkg_triplet }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ matrix.vcpkg_triplet }}-
+      
+      - name: Install System and vcpkg Dependencies
+        shell: pwsh
+        run: |
+          choco install --no-progress -y openssl
+          vcpkg install --triplet=${{ matrix.vcpkg_triplet }}
+      
+      - name: Cache Fast-DDS
+        id: cache-fastdds
+        uses: actions/cache@v4
+        with:
+          path: C:\fastdds-install
+          key: windows-${{ matrix.vcpkg_triplet }}-fastdds-v2.3.4-v3.4.1-v0.7-4
+      
+      - name: Build Fast-DDS
+        if: steps.cache-fastdds.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $installPrefix = "C:\fastdds-install"
+          $toolchainFile = "${{ env.VCPKG_ROOT }}\scripts\buildsystems\vcpkg.cmake"
+          
+          # Build Fast-CDR v2.3.4
+          git clone -b v2.3.4 https://github.com/eProsima/Fast-CDR.git
+          cmake -S Fast-CDR -B Fast-CDR/build `
+            -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
+            -DCMAKE_INSTALL_PREFIX="$installPrefix"
+          cmake --build Fast-CDR/build --config Release --target install
+          Remove-Item -Recurse -Force Fast-CDR
+          
+          # Build foonathan_memory v0.7-4
+          git clone -b v0.7-4 https://github.com/foonathan/memory.git foonathan_memory
+          cmake -S foonathan_memory -B foonathan_memory/build `
+            -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
+            -DCMAKE_INSTALL_PREFIX="$installPrefix" `
+            -DFOONATHAN_MEMORY_BUILD_EXAMPLES=OFF `
+            -DFOONATHAN_MEMORY_BUILD_TESTS=OFF
+          cmake --build foonathan_memory/build --config Release --target install
+          Remove-Item -Recurse -Force foonathan_memory
+          
+          # Build Fast-DDS v3.4.1
+          git clone -b v3.4.1 --recursive https://github.com/eProsima/Fast-DDS.git
+          cmake -S Fast-DDS -B Fast-DDS/build `
+            -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
+            -DCMAKE_INSTALL_PREFIX="$installPrefix" `
+            -DCMAKE_PREFIX_PATH="$installPrefix"
+          cmake --build Fast-DDS/build --config Release --target install
+          Remove-Item -Recurse -Force Fast-DDS
+      
+      - name: Build fastddsgen
+        shell: pwsh
+        run: |
+          git clone -b v4.2.0 --recursive https://github.com/eProsima/Fast-DDS-Gen.git fastddsgen
+          cd fastddsgen
+          .\gradlew.bat assemble
+          New-Item -ItemType Directory -Force -Path "C:\fastdds-install\bin"
+          New-Item -ItemType Directory -Force -Path "C:\fastdds-install\share\fastddsgen"
+          Copy-Item -Recurse share\fastddsgen\* "C:\fastdds-install\share\fastddsgen\"
+          Copy-Item scripts\fastddsgen.bat "C:\fastdds-install\bin\"
+          cd ..
+          Remove-Item -Recurse -Force fastddsgen
+      
+      - name: Generate IDL files
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\fastdds-install\bin;$env:PATH"
+          New-Item -ItemType Directory -Force -Path gen
+          fastddsgen.bat -replace -d gen/ -flat-output-dir examples/HelloWorld.idl
+      
+      - name: Build Petrel
+        shell: pwsh
+        run: |
+          $vcpkgInstalled = "${{ github.workspace }}\vcpkg_installed\${{ matrix.vcpkg_triplet }}"
+          cmake -B build `
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
+            -DCMAKE_PREFIX_PATH="C:\fastdds-install;$vcpkgInstalled" `
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}\install"
+          cmake --build build --config Release
+      
+      - name: Create Package
+        shell: pwsh
+        run: |
+          cd build
+          cpack -G ZIP -C Release
+      
+      - name: Upload Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: petrel-windows-${{ matrix.arch }}-zip
+          path: build/*.zip
+
+  # release:
+  #   name: Create Release
+  #   needs: [build-linux, build-macos, build-windows]
+  #   runs-on: ubuntu-latest
+  #   if: startsWith(github.ref, 'refs/tags/v')
+    
+  #   steps:
+  #     - name: Download All Artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         path: artifacts
+      
+  #     - name: Create Release
+  #       uses: softprops/action-gh-release@v1
+  #       with:
+  #         files: artifacts/**/*
+  #         draft: false
+  #         prerelease: false
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
