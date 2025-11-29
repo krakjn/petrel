@@ -70,11 +70,11 @@ jobs:
       - name: Install System Dependencies
         run: brew install asio tinyxml2
       
-      - name: Setup Java 17
+      - name: Setup Java 11
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '11'
 
       - name: Cache Fast-DDS
         id: cache-fastdds
@@ -162,11 +162,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+      - name: Install System Dependencies
+        run: choco install --no-progress -y openjdk11
       
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
