@@ -180,9 +180,10 @@ jobs:
           restore-keys: |
             vcpkg-${{ matrix.vcpkg_triplet }}-
       
-      - name: Install Dependencies via vcpkg
+      - name: Install System and vcpkg Dependencies
         shell: pwsh
         run: |
+          choco install --no-progress -y openssl
           vcpkg install --triplet=${{ matrix.vcpkg_triplet }}
       
       - name: Cache Fast-DDS
